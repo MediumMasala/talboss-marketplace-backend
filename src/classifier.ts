@@ -65,7 +65,8 @@ function buildUserMessage(input: ClassifierInput): string {
   lines.push(`Current company: ${input.company ?? "Unknown"}`);
   lines.push(`Current role: ${input.role ?? "Unknown"}`);
   lines.push(`Location: ${input.location ?? "Unknown"}`);
-  // Pull richer signals from raw if present (Card 348 has them).
+
+  // Card 348 (Round 1) signals
   const experience = raw.experience;
   const jobTitle = raw.job_title;
   const aiInterviewTitle = raw.ai_interview_title;
@@ -78,6 +79,25 @@ function buildUserMessage(input: ClassifierInput): string {
   }
   if (typeof hiringBias === "string") lines.push(`Hiring bias for the role: ${hiringBias}`);
   if (typeof resumeQuality === "string") lines.push(`Resume quality flag: ${resumeQuality}`);
+
+  // tal.users + LinkedIn enrichment signals
+  const liHeadline = raw.li_headline;
+  const expDuration = raw.exp_duration;
+  const expStart = raw.exp_start_date;
+  const instituteName = raw.institute_name;
+  const instituteDegree = raw.institute_degree;
+  const instituteField = raw.institute_field;
+  const instituteEndYear = raw.institute_end_year;
+  if (typeof liHeadline === "string") lines.push(`LinkedIn headline: ${liHeadline}`);
+  if (typeof expDuration === "string") lines.push(`Current role duration: ${expDuration}`);
+  else if (typeof expStart === "string") lines.push(`Current role since: ${expStart}`);
+  if (typeof instituteName === "string") {
+    const parts = [instituteName];
+    if (typeof instituteDegree === "string") parts.push(instituteDegree);
+    if (typeof instituteField === "string") parts.push(instituteField);
+    if (typeof instituteEndYear === "string") parts.push(`'${instituteEndYear.slice(-2)}`);
+    lines.push(`Education: ${parts.join(", ")}`);
+  }
   return lines.join("\n");
 }
 

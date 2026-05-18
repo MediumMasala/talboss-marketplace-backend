@@ -32,6 +32,20 @@ export function normalizeTalUser(row: Record<string, unknown>, dateISO: string):
   const phone = (row["phone"] as string | null) ?? null;
   const email = (row["email"] as string | null) ?? null;
   const partial = { grapevine_id, phone, email };
+  // Prefer LinkedIn-scraped real signals over user-typed metadata when available.
+  const company =
+    (row["exp_company"] as string | null) ??
+    (row["meta_company"] as string | null) ??
+    null;
+  const role =
+    (row["exp_title"] as string | null) ??
+    (row["meta_role"] as string | null) ??
+    null;
+  const location =
+    (row["li_location_city"] as string | null) ??
+    (row["exp_location"] as string | null) ??
+    (row["user_location"] as string | null) ??
+    null;
   return {
     source_table: "tal_users",
     dedupe_key: pickDedupeKey(partial),
@@ -39,9 +53,9 @@ export function normalizeTalUser(row: Record<string, unknown>, dateISO: string):
     phone,
     email,
     name: (row["name"] as string | null) ?? null,
-    company: (row["company"] as string | null) ?? null,
-    role: (row["role"] as string | null) ?? null,
-    location: (row["location"] as string | null) ?? null,
+    company,
+    role,
+    location,
     joined_at: dateISO,
     raw: row,
   };

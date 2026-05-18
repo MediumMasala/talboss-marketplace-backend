@@ -48,27 +48,61 @@ export async function fetchRound1Candidates(
 }
 
 /**
- * tal.users — pull all rows onboarded on the given IST date.
+ * tal.users — pull rows onboarded on the given IST date, enriched with
+ * LinkedIn profile / current experience / latest institute when available.
+ * Falls back to user-typed metadata when the LinkedIn scrape hasn't run yet.
  */
 export async function fetchTalUsers(
   dateISO: string,
 ): Promise<Record<string, unknown>[]> {
   const sql = `
     select
-      id,
-      phone,
-      name,
-      email,
-      linkedin_url,
-      location,
-      grapevine_id::text as grapevine_id,
-      metadata->>'currentCompany' as company,
-      metadata->>'currentRole'    as role,
-      metadata->>'onboardedAt'    as onboarded_at_raw,
-      (metadata->>'onboardedAt')::timestamptz at time zone '${env.INGEST_TZ}' as onboarded_at_ist
-    from tal.users
-    where onboarding_completed = true
-      and ((metadata->>'onboardedAt')::timestamptz at time zone '${env.INGEST_TZ}')::date = '${dateISO}'::date
+      u.id,
+      u.phone,
+      u.name,
+      u.email,
+      u.linkedin_url,
+      u.location                              as user_location,
+      u.grapevine_id::text                    as grapevine_id,
+      u.metadata->>'currentCompany'           as meta_company,
+      u.metadata->>'currentRole'              as meta_role,
+      u.metadata->>'onboardedAt'              as onboarded_at_raw,
+      (u.metadata->>'onboardedAt')::timestamptz at time zone '${env.INGEST_TZ}' as onboarded_at_ist,
+      p.headline                              as li_headline,
+      p.location_city                         as li_location_city,
+      p.location_country                      as li_location_country,
+      p.public_url                            as li_public_url,
+      p.about                                 as li_about,
+      ce.title                                as exp_title,
+      cc.name                                 as exp_company,
+      cc.url                                  as exp_company_url,
+      ce.location                             as exp_location,
+      ce.start_date                           as exp_start_date,
+      ce.duration_text                        as exp_duration,
+      ins.institute->>'name'                  as institute_name,
+      ins.degree                              as institute_degree,
+      ins.field_of_study                      as institute_field,
+      ins.start_year                          as institute_start_year,
+      ins.end_year                            as institute_end_year
+    from tal.users u
+    left join tal.user_profile p on p.user_id = u.grapevine_id
+    left join lateral (
+      select e.*
+      from tal.user_experience e
+      where e."user_Id" = u.grapevine_id and e.is_current = true
+      order by e.ordinal asc
+      limit 1
+    ) ce on true
+    left join tal.company cc on cc.id = ce.company_id
+    left join lateral (
+      select i.*
+      from tal.user_institutes i
+      where i.user_id = u.grapevine_id
+      order by i.ordinal asc
+      limit 1
+    ) ins on true
+    where u.onboarding_completed = true
+      and ((u.metadata->>'onboardedAt')::timestamptz at time zone '${env.INGEST_TZ}')::date = '${dateISO}'::date
   `;
   const resp = await callMetabase(`/api/dataset`, {
     database: env.METABASE_DB_TAL,
