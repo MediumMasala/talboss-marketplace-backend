@@ -29,7 +29,7 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: CLASSIFIER_MODEL
-        value: gemini-2.5-flash
+        value: gemini-2.5-pro
       - key: CLASSIFIER_PROMPT_VERSION
         value: v1-blr-eng-or-pm
       - key: INGEST_TZ

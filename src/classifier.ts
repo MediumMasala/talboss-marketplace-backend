@@ -104,7 +104,9 @@ export async function classify(input: ClassifierInput): Promise<{
       temperature: 0,
       responseMimeType: "application/json",
       responseSchema: SCHEMA,
-      thinkingConfig: { thinkingBudget: 0 },
+      // 2.5 Pro requires thinking; -1 lets the model decide budget per call.
+      // Flash supports 0 (disabled). Both work without surfacing this in env.
+      thinkingConfig: { thinkingBudget: -1 },
     },
   };
 
