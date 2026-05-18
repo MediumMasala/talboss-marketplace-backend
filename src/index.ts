@@ -1,5 +1,6 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { env } from "./env.js";
 import { requireApiKey } from "./middleware/auth.js";
 import summary from "./routes/summary.js";
@@ -7,6 +8,21 @@ import aggregates from "./routes/aggregates.js";
 import marketplaceCandidates from "./routes/marketplace-candidates.js";
 
 const app = new Hono();
+
+app.use(
+  "/api/*",
+  cors({
+    origin: [
+      "https://talboss-marketplace.shahyashashish.workers.dev",
+      "http://localhost:5173",
+      "http://localhost:3000",
+      "http://localhost:8765",
+    ],
+    allowMethods: ["GET", "OPTIONS"],
+    allowHeaders: ["Content-Type", "x-api-key"],
+    maxAge: 86400,
+  }),
+);
 
 app.get("/healthz", (c) => c.json({ ok: true }));
 
