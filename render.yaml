@@ -40,7 +40,7 @@ services:
     runtime: node
     plan: starter
     region: singapore
-    schedule: "0 4 * * *"
+    schedule: "*/30 * * * *"
     buildCommand: npm install && npm run build
     startCommand: npm run cron:prod
     envVars:

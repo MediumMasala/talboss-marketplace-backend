@@ -6,7 +6,8 @@ import { classify } from "./classifier.js";
 import type { ClassifiedCandidate, Tier } from "./types.js";
 
 /**
- * Daily ingestion job. Defaults to yesterday's IST date.
+ * Ingestion job. Runs every 30 min; defaults to today's IST date so the
+ * dashboard reflects intake as it flows in.
  * Override with `INGEST_DATE=YYYY-MM-DD npm run cron` for backfill.
  */
 
@@ -21,7 +22,7 @@ function istDateMinusDays(days: number): string {
 }
 
 async function run() {
-  const dateISO = process.env.INGEST_DATE ?? istDateMinusDays(1);
+  const dateISO = process.env.INGEST_DATE ?? istDateMinusDays(0);
   console.log(`[ingest] date=${dateISO} tz=${env.INGEST_TZ}`);
 
   const [round1Raw, talRaw] = await Promise.all([
