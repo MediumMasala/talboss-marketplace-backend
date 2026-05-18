@@ -63,7 +63,7 @@ export async function fetchTalUsers(
       location,
       grapevine_id::text as grapevine_id,
       metadata->>'currentCompany' as company,
-      metadata->>'currentTitle'   as role,
+      metadata->>'currentRole'    as role,
       metadata->>'onboardedAt'    as onboarded_at_raw,
       (metadata->>'onboardedAt')::timestamptz at time zone '${env.INGEST_TZ}' as onboarded_at_ist
     from tal.users
