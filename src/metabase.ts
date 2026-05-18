@@ -73,6 +73,9 @@ export async function fetchTalUsers(
       p.location_country                      as li_location_country,
       p.public_url                            as li_public_url,
       p.about                                 as li_about,
+      ld.location                             as ld_location,
+      ld.position                             as ld_position,
+      ld.current_company->>'name'             as ld_current_company,
       ce.title                                as exp_title,
       cc.name                                 as exp_company,
       cc.url                                  as exp_company_url,
@@ -86,6 +89,7 @@ export async function fetchTalUsers(
       ins.end_year                            as institute_end_year
     from tal.users u
     left join tal.user_profile p on p.user_id = u.grapevine_id
+    left join tal.user_linkedin_data ld on ld.user_phone = u.phone
     left join lateral (
       select e.*
       from tal.user_experience e

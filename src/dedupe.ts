@@ -35,14 +35,29 @@ export function normalizeTalUser(row: Record<string, unknown>, dateISO: string):
   // Prefer LinkedIn-scraped real signals over user-typed metadata when available.
   const company =
     (row["exp_company"] as string | null) ??
+    (row["ld_current_company"] as string | null) ??
     (row["meta_company"] as string | null) ??
     null;
   const role =
     (row["exp_title"] as string | null) ??
+    (row["ld_position"] as string | null) ??
     (row["meta_role"] as string | null) ??
     null;
+  // Location fallback chain — most specific first:
+  //   1. ld_location  (LinkedIn-scraper full location string)
+  //   2. li_location_city + country (parsed profile location)
+  //   3. exp_location (current experience location)
+  //   4. user_location (top-level tal.users.location)
+  const liLocCity = row["li_location_city"] as string | null;
+  const liLocCountry = row["li_location_country"] as string | null;
+  const liCombined = liLocCity
+    ? liLocCountry
+      ? `${liLocCity}, ${liLocCountry}`
+      : liLocCity
+    : null;
   const location =
-    (row["li_location_city"] as string | null) ??
+    (row["ld_location"] as string | null) ??
+    liCombined ??
     (row["exp_location"] as string | null) ??
     (row["user_location"] as string | null) ??
     null;
