@@ -77,8 +77,8 @@ async function run() {
           ...c,
           is_marketplace: output.is_marketplace,
           tier: output.tier,
+          confidence: output.confidence,
           reason: output.reason,
-          current_role: output.current_role,
           classifier_version: meta.prompt_version,
         };
         logRows[i] = {
@@ -97,8 +97,8 @@ async function run() {
           ...c,
           is_marketplace: false,
           tier: "other",
+          confidence: "low",
           reason: `classifier error: ${msg.slice(0, 200)}`,
-          current_role: "Unknown",
           classifier_version: `${env.CLASSIFIER_PROMPT_VERSION}-error`,
         };
         logRows[i] = {
@@ -133,8 +133,8 @@ async function run() {
           raw: c.raw,
           is_marketplace: c.is_marketplace,
           tier: c.tier,
+          confidence: c.confidence,
           reason: c.reason,
-          current_role: c.current_role,
           classifier_version: c.classifier_version,
         })),
         { onConflict: "joined_at,dedupe_key" },

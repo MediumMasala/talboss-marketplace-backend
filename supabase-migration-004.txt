@@ -1,0 +1,9 @@
+-- Migration 004 — add confidence column and review-queue index.
+-- Paste into Supabase SQL editor → Run.
+
+alter table candidates_daily
+  add column if not exists confidence text;
+
+create index if not exists candidates_daily_review_queue_idx
+  on candidates_daily (joined_at, confidence)
+  where confidence in ('medium','low');

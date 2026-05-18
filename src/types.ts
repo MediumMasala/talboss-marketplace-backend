@@ -24,18 +24,20 @@ export interface ClassifierInput {
   raw: Record<string, unknown>;
 }
 
+export type Confidence = "high" | "medium" | "low";
+
 export interface ClassifierOutput {
   is_marketplace: boolean;
   tier: Tier;
+  confidence: Confidence;
   reason: string;
-  current_role: string;
 }
 
 export interface ClassifiedCandidate extends NormalizedCandidate {
   is_marketplace: boolean;
   tier: Tier;
+  confidence: Confidence;
   reason: string;
-  current_role: string;
   classifier_version: string;
 }
 
