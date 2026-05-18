@@ -42,6 +42,8 @@ export interface SummaryResponse {
   total: { value: number; delta: number };
   marketplace: { value: number; delta: number };
   tier1_supreme: { value: number; delta: number };
+  tal_users: { value: number; delta: number };
+  round1: { value: number; delta: number };
 }
 
 export interface AggregateRow {
@@ -49,6 +51,8 @@ export interface AggregateRow {
   total_count: number;
   marketplace_count: number;
   tier1_supreme_count: number;
+  tal_users_count: number;
+  round1_count: number;
 }
 
 export interface MarketplaceCandidateRow {
