@@ -28,8 +28,11 @@ function emptyStats(): DayStats {
 }
 
 route.get("/", async (c) => {
-  const today = istDateMinusDays(0);
-  const yesterday = istDateMinusDays(1);
+  const dateRaw = c.req.query("date");
+  const today = dateRaw && /^\d{4}-\d{2}-\d{2}$/.test(dateRaw) ? dateRaw : istDateMinusDays(0);
+  const prev = new Date(today);
+  prev.setDate(prev.getDate() - 1);
+  const yesterday = prev.toISOString().slice(0, 10);
 
   const { data, error } = await supabase
     .from("candidates_daily")
