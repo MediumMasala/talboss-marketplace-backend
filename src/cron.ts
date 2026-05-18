@@ -33,8 +33,19 @@ async function run() {
 
   const round1 = round1Raw.map((r) => normalizeRound1(r, dateISO));
   const tal = talRaw.map((r) => normalizeTalUser(r, dateISO));
-  const merged = mergeUnique(round1, tal);
-  console.log(`[ingest] unique_candidates=${merged.length}`);
+  const allMerged = mergeUnique(round1, tal);
+  console.log(`[ingest] unique_candidates=${allMerged.length}`);
+
+  // Skip-existing: only classify (joined_at, dedupe_key) pairs not yet in DB.
+  const { data: existingRows, error: existingErr } = await supabase
+    .from("candidates_daily")
+    .select("dedupe_key")
+    .eq("joined_at", dateISO);
+  if (existingErr) throw new Error(`fetch existing: ${existingErr.message}`);
+  const existingKeys = new Set((existingRows ?? []).map((r) => r.dedupe_key as string));
+  const merged = allMerged.filter((c) => !existingKeys.has(c.dedupe_key));
+  const skipped = allMerged.length - merged.length;
+  console.log(`[ingest] skipped_existing=${skipped} to_classify=${merged.length}`);
 
   const CONCURRENCY = 8;
   const classified: ClassifiedCandidate[] = new Array(merged.length);
@@ -133,10 +144,16 @@ async function run() {
     if (error) console.warn(`[ingest] classification_log insert: ${error.message}`);
   }
 
-  const total = classified.length;
-  const marketplace = classified.filter((c) => c.is_marketplace).length;
-  const tier1Supreme = classified.filter(
-    (c) => c.is_marketplace && (c.tier === "tier1" || c.tier === "supreme"),
+  // Recount aggregates from DB so skipped-existing rows still count.
+  const { data: allForDate, error: aggCountErr } = await supabase
+    .from("candidates_daily")
+    .select("is_marketplace, tier")
+    .eq("joined_at", dateISO);
+  if (aggCountErr) throw new Error(`daily aggregates fetch: ${aggCountErr.message}`);
+  const total = allForDate?.length ?? 0;
+  const marketplace = (allForDate ?? []).filter((r) => r.is_marketplace).length;
+  const tier1Supreme = (allForDate ?? []).filter(
+    (r) => r.is_marketplace && (r.tier === "tier1" || r.tier === "supreme"),
   ).length;
 
   const { error: aggError } = await supabase.from("daily_aggregates").upsert(
@@ -151,7 +168,7 @@ async function run() {
   );
   if (aggError) throw new Error(`daily_aggregates upsert failed: ${aggError.message}`);
 
-  console.log(`[ingest] done date=${dateISO} total=${total} marketplace=${marketplace} t1s=${tier1Supreme}`);
+  console.log(`[ingest] done date=${dateISO} new=${classified.length} total=${total} marketplace=${marketplace} t1s=${tier1Supreme}`);
 }
 
 run().catch((err) => {

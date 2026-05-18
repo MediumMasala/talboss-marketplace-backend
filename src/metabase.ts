@@ -101,8 +101,7 @@ export async function fetchTalUsers(
       order by i.ordinal asc
       limit 1
     ) ins on true
-    where u.onboarding_completed = true
-      and ((u.metadata->>'onboardedAt')::timestamptz at time zone '${env.INGEST_TZ}')::date = '${dateISO}'::date
+    where (u.created_at at time zone '${env.INGEST_TZ}')::date = '${dateISO}'::date
   `;
   const resp = await callMetabase(`/api/dataset`, {
     database: env.METABASE_DB_TAL,
