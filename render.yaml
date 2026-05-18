@@ -31,7 +31,7 @@ services:
       - key: CLASSIFIER_MODEL
         value: gemini-2.5-pro
       - key: CLASSIFIER_PROMPT_VERSION
-        value: v1-blr-eng-or-pm
+        value: v2-with-current-role
       - key: INGEST_TZ
         value: Asia/Kolkata
 

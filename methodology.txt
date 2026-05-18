@@ -1,0 +1,165 @@
+TALBOSS MARKETPLACE DASHBOARD — METHODOLOGY
+============================================
+
+Last updated: 2026-05-18
+
+
+UPDATE CADENCE
+--------------
+
+Cron schedule:     */30 * * * *  (every 30 minutes, UTC)
+Runs per day:      48
+Hosted on:         Render — service "marketplace-dashboard-ingest"
+Default target:    today's IST date (the day actively in progress)
+Backfill mode:     `INGEST_DATE=YYYY-MM-DD` runs the same cron for any
+                   past day, with idempotent upserts.
+
+Why 30 minutes:
+- Frequent enough that the dashboard feels live (max staleness 30 min)
+- Infrequent enough that classifier cost stays trivial
+- Skip-existing logic (see below) means re-runs are nearly free
+
+
+DATA SOURCES
+------------
+
+Two Metabase sources, queried each cron run:
+
+1. Card 348 "Round 1 - God Table" (Metabase database 2)
+   - Captures Round 1 funnel entries: resume uploads mapped to AI
+     interviews + job applications
+   - Pulled via POST /api/card/348/query with created_at_start +
+     created_at_end both set to the ingest date
+   - Provides rich signals: experience years, applied-job title, AI
+     interview track, hiring bias, resume quality flag
+
+2. tal.users (Metabase database 12)
+   - Captures Tal app sign-ups: any user.created_at = today
+   - Pulled via POST /api/dataset (native SQL) with multi-table joins:
+       • tal.user_profile (LinkedIn headline, scraped location)
+       • tal.user_experience filtered to is_current=true (real role +
+         company name via tal.company join)
+       • tal.user_institutes (latest education entry)
+       • tal.user_linkedin_data (scraper-provided location, position,
+         current_company name)
+   - Falls back to user-typed metadata for fresh signups whose
+     LinkedIn hasn't been scraped yet
+
+
+PIPELINE (per cron run)
+-----------------------
+
+1. FETCH (parallel)
+   - Round 1 Card 348 query for date
+   - tal.users enriched query for date
+
+2. NORMALIZE
+   - Standardize each row into {name, company, role, location,
+     grapevine_id, phone, email, raw}
+   - For tal.users, pick the richest non-null field across:
+       company:  exp_company > ld_current_company > meta_company
+       role:     exp_title  > ld_position        > meta_role
+       location: ld_location > li_city+country  > exp_location > user_location
+
+3. DEDUPE across sources
+   - Cross-source key: grapevine_id (UUID) → phone → email
+   - When same person appears in both sources, source_table="both" and
+     non-null fields are merged
+
+4. SKIP-EXISTING
+   - Query candidates_daily for (joined_at, dedupe_key) pairs already
+     present for this date
+   - Filter to "new arrivals only" — already-classified rows are left
+     untouched (no re-classification, no Gemini call)
+
+5. CLASSIFY (Gemini 2.5 Pro, concurrency 8)
+   - System prompt: 3-rule marketplace filter (location + role + company)
+     plus 4-tier quality rubric (supreme / tier1 / tier2 / other)
+   - JSON output via responseSchema; temperature 0; thinkingBudget -1
+     (dynamic thinking)
+   - 45s timeout per call via AbortController; failures fall back to
+     a stub row with classifier_version="*-error" for later retry
+
+6. PERSIST
+   - Upsert into candidates_daily on conflict (joined_at, dedupe_key)
+   - Insert into classification_log (input + output + model + version +
+     latency, one row per classification call)
+
+7. AGGREGATES
+   - Daily totals recomputed in-database via the daily_breakdown(start,
+     end) Postgres function and surfaced through /api/summary and
+     /api/aggregates
+
+
+SERVING LAYER
+-------------
+
+REST API (Render, Hono + Node 20):
+  GET /api/summary?date=YYYY-MM-DD
+      Returns today/selected-date stat cards: total, marketplace,
+      tier1_supreme, tal_users, round1 — each with value + delta vs
+      previous day.
+  GET /api/aggregates?days=N
+      Returns last N days of breakdown rows for the trend chart.
+  GET /api/marketplace-candidates?date=YYYY-MM-DD
+      Returns the row-level table for the Candidates tab.
+All routes require header `x-api-key: <secret>`.
+
+Frontend (Cloudflare Workers, Vite + TanStack Start + shadcn/ui):
+  - Two tabs: Aggregates + Marketplace Candidates
+  - Stat cards have a date picker so any past day's snapshot is one click
+  - Trend chart toggles 7 / 30 / 90 days
+
+
+MARKETPLACE DEFINITION (current prompt v1-blr-eng-or-pm)
+--------------------------------------------------------
+
+is_marketplace = true only if ALL three:
+  1. Bangalore-based (or willing to relocate / company is Bangalore-HQ'd)
+  2. Software engineer OR product manager role
+  3. Current employer is a product/engineering org
+     (IT services, non-engineering GCC back offices, pure consulting,
+      and staffing firms are explicitly excluded)
+
+Tier rubric:
+  supreme   — senior+ at top-tier product / FAANG-equivalent / AI labs
+  tier1     — solid eng/PM at known product co, 2-7 yrs
+  tier2     — junior/mid at smaller product co
+  other     — every non-marketplace candidate
+
+Full prompt: ~/Desktop/Claude Project/Marketplace Dashboard/classifier-prompt.txt
+
+
+AUDIT
+-----
+
+Every classification call is logged in `classification_log`:
+  joined_at, dedupe_key, prompt_version, model, input, output, latency_ms
+
+To compare prompt-version changes: query this table grouped by
+classifier_version. Bump CLASSIFIER_PROMPT_VERSION env var whenever the
+SYSTEM_PROMPT changes so the audit log stays interpretable.
+
+
+COST
+----
+
+Gemini 2.5 Pro: ~$0.001 per classification
+New candidates per day: ~1,000-1,800
+Daily classification cost: ~$1-2
+Monthly: ~$30-60
+
+Skip-existing means cron re-runs are nearly free of API cost — only
+genuinely new candidates trigger a Gemini call.
+
+
+REPRODUCIBILITY
+---------------
+
+Backend repo:    https://github.com/MediumMasala/talboss-marketplace-backend
+Frontend repo:   https://github.com/MediumMasala/talboss-insights-1577ac3f
+Live backend:    https://marketplace-dashboard-api-m4f7.onrender.com
+Live dashboard:  https://talboss-marketplace.shahyashashish.workers.dev
+Database:        Supabase project avhgrajzoulaxgxyyuvm
+Metabase:        https://metabase.pub.gcp.gvine.app — Card 348, db 2 +
+                  native SQL on db 12 (with marketplace-dashboard-v2 key)

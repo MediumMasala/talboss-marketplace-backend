@@ -14,20 +14,47 @@ function todayIST(): string {
   return `${y}-${m}-${d}`;
 }
 
+function pickLinkedIn(raw: Record<string, unknown>): string | null {
+  const candidates = [
+    raw["linkedin_url"],
+    raw["li_public_url"],
+  ];
+  for (const c of candidates) {
+    if (typeof c === "string" && c.startsWith("http")) return c;
+  }
+  return null;
+}
+
+function pickResume(raw: Record<string, unknown>): string | null {
+  const v = raw["resume_url"];
+  return typeof v === "string" && v.startsWith("http") ? v : null;
+}
+
 route.get("/", async (c) => {
   const dateRaw = c.req.query("date");
   const dateISO = dateRaw && /^\d{4}-\d{2}-\d{2}$/.test(dateRaw) ? dateRaw : todayIST();
 
   const { data, error } = await supabase
     .from("candidates_daily")
-    .select("name,company,role,tier,reason,joined_at")
+    .select("name, company, role, current_role, reason, joined_at, raw")
     .eq("joined_at", dateISO)
     .eq("is_marketplace", true)
-    .order("name", { ascending: true });
+    .order("name", { ascending: true })
+    .limit(5000);
 
   if (error) return c.json({ error: error.message }, 500);
 
-  const rows: MarketplaceCandidateRow[] = (data ?? []) as MarketplaceCandidateRow[];
+  const rows: MarketplaceCandidateRow[] = (data ?? []).map((r) => ({
+    name: r.name as string | null,
+    company: r.company as string | null,
+    role: r.role as string | null,
+    current_role: (r.current_role as string | null) ?? null,
+    linkedin_url: pickLinkedIn((r.raw ?? {}) as Record<string, unknown>),
+    resume_url: pickResume((r.raw ?? {}) as Record<string, unknown>),
+    reason: r.reason as string,
+    joined_at: r.joined_at as string,
+  }));
+
   return c.json({ date: dateISO, rows });
 });
 

@@ -41,7 +41,9 @@ TIER RULES — assign tier as follows:
 
 OUTPUT: respond ONLY with a JSON object matching the schema. No prose, no markdown.
 
-REASON: 1–2 short sentences citing the specific signals you used (e.g. "Senior backend engineer at Razorpay; Bangalore; well-known fintech engineering org"). If excluding, state the disqualifying signal (e.g. "TCS is an IT services firm — not engineering-dense"). Be concise; this text shows in a dashboard cell.`;
+REASON: 1–2 short sentences citing the specific signals you used (e.g. "Senior backend engineer at Razorpay; Bangalore; well-known fintech engineering org"). If excluding, state the disqualifying signal (e.g. "TCS is an IT services firm — not engineering-dense"). Be concise; this text shows in a dashboard cell.
+
+CURRENT_ROLE: extract the candidate's CURRENT designation at their current company — the role title they hold today (e.g. "Senior Backend Engineer", "Staff Software Engineer", "Product Manager", "ML Lead", "Founding Engineer"). Use only signals about their CURRENT position. For Round 1 candidates, the "Job they applied to" is NOT their current role — ignore it; rely on resume content if visible, otherwise on company + experience signals. For Tal candidates, prefer the LinkedIn-scraped current role over user-typed metadata. If you cannot determine the current role with confidence, return "Unknown".`;
 
 const SCHEMA = {
   type: "object",
@@ -49,8 +51,9 @@ const SCHEMA = {
     is_marketplace: { type: "boolean" },
     tier: { type: "string", enum: ["supreme", "tier1", "tier2", "other"] },
     reason: { type: "string" },
+    current_role: { type: "string" },
   },
-  required: ["is_marketplace", "tier", "reason"],
+  required: ["is_marketplace", "tier", "reason", "current_role"],
 } as const;
 
 interface GeminiResponse {
@@ -62,9 +65,13 @@ function buildUserMessage(input: ClassifierInput): string {
   const raw = input.raw as Record<string, unknown>;
   const lines: string[] = [];
   lines.push(`Name: ${input.name ?? "Unknown"}`);
-  lines.push(`Current company: ${input.company ?? "Unknown"}`);
-  lines.push(`Current role: ${input.role ?? "Unknown"}`);
+  lines.push(`Current company (from data): ${input.company ?? "Unknown"}`);
+  lines.push(`Self-reported role (may be the applied job for Round 1 — verify): ${input.role ?? "Unknown"}`);
   lines.push(`Location: ${input.location ?? "Unknown"}`);
+  const resumeText = raw["resume_text"];
+  if (typeof resumeText === "string" && resumeText.length > 0) {
+    lines.push(`Resume snippet:\n${resumeText.slice(0, 2000)}`);
+  }
 
   // Card 348 (Round 1) signals
   const experience = raw.experience;
@@ -111,7 +118,7 @@ export async function classify(input: ClassifierInput): Promise<{
   if (!apiKey) {
     // Fail-open stub so cron still runs in environments without a key.
     return {
-      output: { is_marketplace: false, tier: "other", reason: "no GEMINI_API_KEY configured" },
+      output: { is_marketplace: false, tier: "other", reason: "no GEMINI_API_KEY configured", current_role: "Unknown" },
       meta: { model: env.CLASSIFIER_MODEL, prompt_version: env.CLASSIFIER_PROMPT_VERSION, latency_ms: Date.now() - started },
     };
   }

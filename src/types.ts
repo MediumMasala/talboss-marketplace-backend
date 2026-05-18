@@ -28,12 +28,14 @@ export interface ClassifierOutput {
   is_marketplace: boolean;
   tier: Tier;
   reason: string;
+  current_role: string;
 }
 
 export interface ClassifiedCandidate extends NormalizedCandidate {
   is_marketplace: boolean;
   tier: Tier;
   reason: string;
+  current_role: string;
   classifier_version: string;
 }
 
@@ -59,7 +61,9 @@ export interface MarketplaceCandidateRow {
   name: string | null;
   company: string | null;
   role: string | null;
-  tier: Tier;
+  current_role: string | null;
+  linkedin_url: string | null;
+  resume_url: string | null;
   reason: string;
   joined_at: string;
 }

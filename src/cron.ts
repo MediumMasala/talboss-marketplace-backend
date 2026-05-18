@@ -78,6 +78,7 @@ async function run() {
           is_marketplace: output.is_marketplace,
           tier: output.tier,
           reason: output.reason,
+          current_role: output.current_role,
           classifier_version: meta.prompt_version,
         };
         logRows[i] = {
@@ -97,6 +98,7 @@ async function run() {
           is_marketplace: false,
           tier: "other",
           reason: `classifier error: ${msg.slice(0, 200)}`,
+          current_role: "Unknown",
           classifier_version: `${env.CLASSIFIER_PROMPT_VERSION}-error`,
         };
         logRows[i] = {
@@ -132,6 +134,7 @@ async function run() {
           is_marketplace: c.is_marketplace,
           tier: c.tier,
           reason: c.reason,
+          current_role: c.current_role,
           classifier_version: c.classifier_version,
         })),
         { onConflict: "joined_at,dedupe_key" },
