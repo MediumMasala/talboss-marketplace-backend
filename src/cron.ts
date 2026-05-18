@@ -35,7 +35,8 @@ async function run() {
   const merged = mergeUnique(round1, tal);
   console.log(`[ingest] unique_candidates=${merged.length}`);
 
-  const classified: ClassifiedCandidate[] = [];
+  const CONCURRENCY = 8;
+  const classified: ClassifiedCandidate[] = new Array(merged.length);
   const logRows: {
     joined_at: string;
     dedupe_key: string;
@@ -44,33 +45,61 @@ async function run() {
     input: unknown;
     output: unknown;
     latency_ms: number;
-  }[] = [];
+  }[] = new Array(merged.length);
 
-  for (const c of merged) {
-    const { output, meta } = await classify({
-      name: c.name,
-      company: c.company,
-      role: c.role,
-      location: c.location,
-      raw: c.raw,
-    });
-    classified.push({
-      ...c,
-      is_marketplace: output.is_marketplace,
-      tier: output.tier,
-      reason: output.reason,
-      classifier_version: meta.prompt_version,
-    });
-    logRows.push({
-      joined_at: dateISO,
-      dedupe_key: c.dedupe_key,
-      prompt_version: meta.prompt_version,
-      model: meta.model,
-      input: { name: c.name, company: c.company, role: c.role, location: c.location },
-      output,
-      latency_ms: meta.latency_ms,
-    });
+  let cursor = 0;
+  async function worker(): Promise<void> {
+    while (true) {
+      const i = cursor++;
+      if (i >= merged.length) return;
+      const c = merged[i];
+      try {
+        const { output, meta } = await classify({
+          name: c.name,
+          company: c.company,
+          role: c.role,
+          location: c.location,
+          raw: c.raw,
+        });
+        classified[i] = {
+          ...c,
+          is_marketplace: output.is_marketplace,
+          tier: output.tier,
+          reason: output.reason,
+          classifier_version: meta.prompt_version,
+        };
+        logRows[i] = {
+          joined_at: dateISO,
+          dedupe_key: c.dedupe_key,
+          prompt_version: meta.prompt_version,
+          model: meta.model,
+          input: { name: c.name, company: c.company, role: c.role, location: c.location },
+          output,
+          latency_ms: meta.latency_ms,
+        };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`[ingest] classify failed for ${c.dedupe_key}: ${msg}`);
+        classified[i] = {
+          ...c,
+          is_marketplace: false,
+          tier: "other",
+          reason: `classifier error: ${msg.slice(0, 200)}`,
+          classifier_version: `${env.CLASSIFIER_PROMPT_VERSION}-error`,
+        };
+        logRows[i] = {
+          joined_at: dateISO,
+          dedupe_key: c.dedupe_key,
+          prompt_version: `${env.CLASSIFIER_PROMPT_VERSION}-error`,
+          model: env.CLASSIFIER_MODEL,
+          input: { name: c.name, company: c.company, role: c.role, location: c.location },
+          output: { error: msg },
+          latency_ms: 0,
+        };
+      }
+    }
   }
+  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
 
   if (classified.length) {
     const { error } = await supabase

@@ -29,9 +29,9 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: CLASSIFIER_MODEL
-        value: gemini-2.0-flash
+        value: gemini-2.5-flash
       - key: CLASSIFIER_PROMPT_VERSION
-        value: stub-v0
+        value: v1-blr-eng-or-pm
       - key: INGEST_TZ
         value: Asia/Kolkata
 

@@ -10,7 +10,7 @@ const Env = z.object({
   METABASE_CARD_ROUND1: z.coerce.number().default(348),
   METABASE_DB_TAL: z.coerce.number().default(12),
   GEMINI_API_KEY: z.string().optional(),
-  CLASSIFIER_MODEL: z.string().default("gemini-2.0-flash"),
+  CLASSIFIER_MODEL: z.string().default("gemini-2.5-flash"),
   CLASSIFIER_PROMPT_VERSION: z.string().default("stub-v0"),
   INGEST_TZ: z.string().default("Asia/Kolkata"),
 });
