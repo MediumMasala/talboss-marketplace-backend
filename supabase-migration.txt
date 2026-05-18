@@ -1,0 +1,58 @@
+create extension if not exists pgcrypto;
+
+create table if not exists candidates_daily (
+  id              bigserial primary key,
+  joined_at       date not null,
+  source_table    text not null check (source_table in ('round1_god_table','tal_users','both')),
+  dedupe_key      text not null,
+  grapevine_id    uuid,
+  phone           text,
+  email           text,
+  name            text,
+  company         text,
+  role            text,
+  location        text,
+  raw             jsonb not null,
+  is_marketplace  boolean not null,
+  tier            text not null check (tier in ('supreme','tier1','tier2','other')),
+  reason          text not null,
+  classifier_version text not null,
+  classified_at   timestamptz not null default now(),
+  unique (joined_at, dedupe_key)
+);
+
+create index if not exists candidates_daily_joined_at_idx
+  on candidates_daily (joined_at desc);
+
+create index if not exists candidates_daily_marketplace_idx
+  on candidates_daily (joined_at, is_marketplace)
+  where is_marketplace = true;
+
+create index if not exists candidates_daily_tier_idx
+  on candidates_daily (joined_at, tier);
+
+create table if not exists daily_aggregates (
+  joined_at           date primary key,
+  total_count         int  not null,
+  marketplace_count   int  not null,
+  tier1_supreme_count int  not null,
+  computed_at         timestamptz not null default now()
+);
+
+create table if not exists classification_log (
+  id              bigserial primary key,
+  candidate_id    bigint references candidates_daily(id) on delete set null,
+  joined_at       date not null,
+  dedupe_key      text not null,
+  prompt_version  text not null,
+  model           text not null,
+  input           jsonb not null,
+  output          jsonb not null,
+  latency_ms      int,
+  created_at      timestamptz not null default now()
+);
+
+create index if not exists classification_log_created_at_idx
+  on classification_log (created_at desc);
+create index if not exists classification_log_joined_at_idx
+  on classification_log (joined_at desc);

@@ -1,0 +1,138 @@
+TALBOSS MARKETPLACE DASHBOARD — LOVABLE PROMPT
+================================================
+
+Paste everything below the "=== PROMPT START ===" line into Lovable.
+Replace API_BASE_URL with the deployed Render URL once available;
+in the meantime Lovable can mock the responses using the shapes below.
+
+=== PROMPT START ===
+
+Build an internal web dashboard for TalBoss, a hiring marketplace. One person uses it every morning: the founder, checking how many quality candidates joined yesterday.
+
+The dashboard reads from a REST API. Configure these environment variables in Lovable:
+- API_BASE_URL — set to the Render-deployed backend URL (e.g. https://marketplace-dashboard-api.onrender.com)
+- API_KEY — a secret string. Send it as an `x-api-key` header on every API request.
+
+## Design language
+
+- Reference: Linear and Vercel dashboards
+- Font: Inter
+- Theme: Light primary, with a clean dark-mode toggle in the top-right
+- Color: restrained — one accent color for primary actions, grays for everything else, green and red only for stat deltas
+- Density: information-dense but readable. Generous but not luxurious whitespace.
+- Components: shadcn/ui — Card, Button, Input, Select, Badge, Table, Skeleton, Toast, Tabs, DatePicker
+
+## Layout
+
+- Left sidebar (collapsible on mobile) with two nav items: "Aggregates" and "Marketplace Candidates"
+- Top bar: TalBoss logo placeholder (left), today's date in "May 18, 2026" format (center), refresh button + dark-mode toggle (right)
+- Main content area renders the active tab
+- Page title: "TalBoss Marketplace"
+
+## Tab 1 — Aggregates (default route)
+
+Show today's headline numbers + a 30-day trend.
+
+### Three stat cards in a row, full width
+Hit GET /api/summary. Response shape:
+{
+  "date": "2026-05-18",
+  "total":         { "value": 142, "delta": 12 },
+  "marketplace":   { "value": 47,  "delta": -3 },
+  "tier1_supreme": { "value": 14,  "delta": 2 }
+}
+
+Each card:
+- Big bold number
+- Small label underneath, in this exact order:
+  1. "Total Candidates Today"
+  2. "Marketplace Candidates Today"
+  3. "Tier 1 + Supreme Today"
+- Below the label, a delta row: arrow icon + number, green if positive, red if negative, muted gray if zero. Append " vs yesterday" in lighter weight.
+
+### Line chart below the cards, full width
+Hit GET /api/aggregates?days=30. Response:
+{
+  "days": 30,
+  "rows": [
+    { "joined_at": "2026-04-19", "total_count": 102, "marketplace_count": 31, "tier1_supreme_count": 9 },
+    { "joined_at": "2026-04-20", "total_count": 88,  "marketplace_count": 27, "tier1_supreme_count": 7 }
+  ]
+}
+
+- Three lines overlaid: total_count, marketplace_count, tier1_supreme_count
+- Legend in the top-right corner of the chart
+- X axis: dates (short format, e.g. "Apr 19"). Y axis: counts.
+- Hover tooltip shows the full date plus all three values
+- Above the chart, on the right: a toggle group with 7 / 30 / 90 days. Default 30. Refetch on change.
+
+## Tab 2 — Marketplace Candidates
+
+Browse the individuals who passed the marketplace filter.
+
+### Top controls (row above the table)
+- Date picker (default: today). On change, refetch.
+- Search input (placeholder: "Search name or company..."). Client-side filter across the loaded rows.
+- Multi-select dropdown labelled "Tier" with options: Supreme, Tier 1, Tier 2. Multi-select.
+- "Export CSV" button on the right. Downloads currently filtered rows as marketplace-YYYY-MM-DD.csv with the visible columns.
+
+### Data fetch
+GET /api/marketplace-candidates?date=YYYY-MM-DD
+Response:
+{
+  "date": "2026-05-18",
+  "rows": [
+    {
+      "name": "Aanya Sharma",
+      "company": "Razorpay",
+      "role": "Senior Backend Engineer",
+      "tier": "tier1",
+      "reason": "Bangalore-based senior engineer at a product-led fintech with strong backend depth across payments infra.",
+      "joined_at": "2026-05-18"
+    }
+  ]
+}
+
+### Table
+- Columns in this order: Name | Company | Role | Tier | Why Marketplace
+- Every column sortable on click
+- Sticky header on scroll
+- Tier rendered as a colored badge:
+    "supreme" -> purple
+    "tier1"   -> blue
+    "tier2"   -> gray
+- "Why Marketplace" column truncated to 2 lines with ellipsis. Click the row to expand the reason inline (toggle).
+
+## All API requests
+
+- Always send header: x-api-key: <API_KEY value>
+- Base URL: API_BASE_URL
+- Use native fetch — no SDK
+- All endpoints are GET
+
+## States
+
+- Loading: skeleton placeholders (skeleton cards, skeleton chart bars, skeleton table rows). Avoid spinners.
+- Empty: a clean empty state with an inbox-style icon. Aggregates empty: "No data for this date range yet." Candidates empty: "No marketplace candidates for {date}. Try another date."
+- Error: a toast with the error message and a "Retry" button. Keep previously-loaded data visible underneath if any.
+
+## Polish
+
+- Date format in UI: "May 18, 2026"
+- Date format in URLs: ISO YYYY-MM-DD
+- Pluralize correctly ("1 candidate" vs "47 candidates")
+- Tooltips on every icon-only button
+- Cmd/Ctrl+R refreshes the current tab's data
+
+## Mobile
+
+Responsive but optimized for desktop. On mobile, the sidebar collapses to a hamburger menu, stat cards stack vertically, and the candidates table scrolls horizontally.
+
+## What NOT to add
+
+- No login / auth UI (the x-api-key header is sufficient, this is an internal tool)
+- No editing capabilities — read-only dashboard
+- No notifications, no settings page, no user profile
+- No additional tabs or views
+
+=== PROMPT END ===

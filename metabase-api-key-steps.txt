@@ -1,0 +1,45 @@
+METABASE API KEY — HOW TO CREATE
+================================
+
+Why: The Render cron (9:30 AM IST daily) needs to call Metabase's REST API
+to pull yesterday's candidates. The API key is the auth token it sends.
+
+Two endpoints the cron will hit:
+  1. POST /api/card/348/query   (Round 1 - God Table, db 2)
+  2. POST /api/dataset           (native SQL on tal.users, db 12)
+
+
+STEPS
+-----
+
+1) Sign into Metabase as an admin:
+   https://metabase.pub.gcp.gvine.app
+
+2) Top-right corner — click the gear icon → "Admin settings".
+
+3) Go to:
+   Settings → Authentication → API keys
+   (some versions: People → API keys)
+
+   Direct URL (try this first):
+   https://metabase.pub.gcp.gvine.app/admin/settings/authentication/api-keys
+
+4) Click "+ Create API key".
+
+   Name:  marketplace-dashboard
+   Group: Administrators
+          (simplest — guarantees read access on both db 2 and db 12.
+           Any group with read on both DBs works too.)
+
+5) Click "Create".
+
+6) Metabase will show the key exactly once. It starts with `mb_…`.
+   Copy it immediately.
+
+7) Paste it back into chat. I'll save it to .env.local (gitignored,
+   not echoed) and run a 1-row smoke test from each source to confirm
+   it works.
+
+
+If you can't find the API keys page in this Metabase version, screenshot
+the admin sidebar and I'll point you to the right spot.

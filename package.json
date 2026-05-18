@@ -1,0 +1,28 @@
+{
+  "name": "talboss-marketplace-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "cron": "tsx src/cron.ts",
+    "cron:prod": "node dist/cron.js",
+    "ingest:date": "tsx src/cron.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.0",
+    "@supabase/supabase-js": "^2.45.0",
+    "hono": "^4.6.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

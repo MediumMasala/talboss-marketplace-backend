@@ -1,0 +1,132 @@
+import { env } from "./env.js";
+import { supabase } from "./supabase.js";
+import { fetchRound1Candidates, fetchTalUsers } from "./metabase.js";
+import { mergeUnique, normalizeRound1, normalizeTalUser } from "./dedupe.js";
+import { classify } from "./classifier.js";
+import type { ClassifiedCandidate, Tier } from "./types.js";
+
+/**
+ * Daily ingestion job. Defaults to yesterday's IST date.
+ * Override with `INGEST_DATE=YYYY-MM-DD npm run cron` for backfill.
+ */
+
+function istDateMinusDays(days: number): string {
+  const now = new Date();
+  const ist = new Date(now.toLocaleString("en-US", { timeZone: env.INGEST_TZ }));
+  ist.setDate(ist.getDate() - days);
+  const y = ist.getFullYear();
+  const m = String(ist.getMonth() + 1).padStart(2, "0");
+  const d = String(ist.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+async function run() {
+  const dateISO = process.env.INGEST_DATE ?? istDateMinusDays(1);
+  console.log(`[ingest] date=${dateISO} tz=${env.INGEST_TZ}`);
+
+  const [round1Raw, talRaw] = await Promise.all([
+    fetchRound1Candidates(dateISO),
+    fetchTalUsers(dateISO),
+  ]);
+  console.log(`[ingest] round1=${round1Raw.length} tal_users=${talRaw.length}`);
+
+  const round1 = round1Raw.map((r) => normalizeRound1(r, dateISO));
+  const tal = talRaw.map((r) => normalizeTalUser(r, dateISO));
+  const merged = mergeUnique(round1, tal);
+  console.log(`[ingest] unique_candidates=${merged.length}`);
+
+  const classified: ClassifiedCandidate[] = [];
+  const logRows: {
+    joined_at: string;
+    dedupe_key: string;
+    prompt_version: string;
+    model: string;
+    input: unknown;
+    output: unknown;
+    latency_ms: number;
+  }[] = [];
+
+  for (const c of merged) {
+    const { output, meta } = await classify({
+      name: c.name,
+      company: c.company,
+      role: c.role,
+      location: c.location,
+      raw: c.raw,
+    });
+    classified.push({
+      ...c,
+      is_marketplace: output.is_marketplace,
+      tier: output.tier,
+      reason: output.reason,
+      classifier_version: meta.prompt_version,
+    });
+    logRows.push({
+      joined_at: dateISO,
+      dedupe_key: c.dedupe_key,
+      prompt_version: meta.prompt_version,
+      model: meta.model,
+      input: { name: c.name, company: c.company, role: c.role, location: c.location },
+      output,
+      latency_ms: meta.latency_ms,
+    });
+  }
+
+  if (classified.length) {
+    const { error } = await supabase
+      .from("candidates_daily")
+      .upsert(
+        classified.map((c) => ({
+          joined_at: c.joined_at,
+          source_table: c.source_table,
+          dedupe_key: c.dedupe_key,
+          grapevine_id: c.grapevine_id,
+          phone: c.phone,
+          email: c.email,
+          name: c.name,
+          company: c.company,
+          role: c.role,
+          location: c.location,
+          raw: c.raw,
+          is_marketplace: c.is_marketplace,
+          tier: c.tier,
+          reason: c.reason,
+          classifier_version: c.classifier_version,
+        })),
+        { onConflict: "joined_at,dedupe_key" },
+      );
+    if (error) throw new Error(`candidates_daily upsert failed: ${error.message}`);
+  }
+
+  if (logRows.length) {
+    const { error } = await supabase.from("classification_log").insert(logRows);
+    if (error) console.warn(`[ingest] classification_log insert: ${error.message}`);
+  }
+
+  const total = classified.length;
+  const marketplace = classified.filter((c) => c.is_marketplace).length;
+  const tier1Supreme = classified.filter(
+    (c) => c.is_marketplace && (c.tier === "tier1" || c.tier === "supreme"),
+  ).length;
+
+  const { error: aggError } = await supabase.from("daily_aggregates").upsert(
+    {
+      joined_at: dateISO,
+      total_count: total,
+      marketplace_count: marketplace,
+      tier1_supreme_count: tier1Supreme,
+      computed_at: new Date().toISOString(),
+    },
+    { onConflict: "joined_at" },
+  );
+  if (aggError) throw new Error(`daily_aggregates upsert failed: ${aggError.message}`);
+
+  console.log(`[ingest] done date=${dateISO} total=${total} marketplace=${marketplace} t1s=${tier1Supreme}`);
+}
+
+run().catch((err) => {
+  console.error("[ingest] failed:", err);
+  process.exit(1);
+});
+
+export { run };

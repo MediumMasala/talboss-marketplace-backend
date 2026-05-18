@@ -1,0 +1,96 @@
+services:
+  - type: web
+    name: marketplace-dashboard-api
+    runtime: node
+    plan: starter
+    region: singapore
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: PORT
+        value: "8080"
+      - key: API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: METABASE_URL
+        value: https://metabase.pub.gcp.gvine.app
+      - key: METABASE_API_KEY
+        sync: false
+      - key: METABASE_CARD_ROUND1
+        value: "348"
+      - key: METABASE_DB_TAL
+        value: "12"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: CLASSIFIER_MODEL
+        value: gemini-2.0-flash
+      - key: CLASSIFIER_PROMPT_VERSION
+        value: stub-v0
+      - key: INGEST_TZ
+        value: Asia/Kolkata
+
+  - type: cron
+    name: marketplace-dashboard-ingest
+    runtime: node
+    plan: starter
+    region: singapore
+    schedule: "0 4 * * *"
+    buildCommand: npm install && npm run build
+    startCommand: npm run cron:prod
+    envVars:
+      - fromService:
+          name: marketplace-dashboard-api
+          type: web
+          envVarKey: SUPABASE_URL
+        key: SUPABASE_URL
+      - fromService:
+          name: marketplace-dashboard-api
+          type: web
+          envVarKey: SUPABASE_SERVICE_ROLE_KEY
+        key: SUPABASE_SERVICE_ROLE_KEY
+      - fromService:
+          name: marketplace-dashboard-api
+          type: web
+          envVarKey: METABASE_URL
+        key: METABASE_URL
+      - fromService:
+          name: marketplace-dashboard-api
+          type: web
+          envVarKey: METABASE_API_KEY
+        key: METABASE_API_KEY
+      - fromService:
+          name: marketplace-dashboard-api
+          type: web
+          envVarKey: METABASE_CARD_ROUND1
+        key: METABASE_CARD_ROUND1
+      - fromService:
+          name: marketplace-dashboard-api
+          type: web
+          envVarKey: METABASE_DB_TAL
+        key: METABASE_DB_TAL
+      - fromService:
+          name: marketplace-dashboard-api
+          type: web
+          envVarKey: GEMINI_API_KEY
+        key: GEMINI_API_KEY
+      - fromService:
+          name: marketplace-dashboard-api
+          type: web
+          envVarKey: CLASSIFIER_MODEL
+        key: CLASSIFIER_MODEL
+      - fromService:
+          name: marketplace-dashboard-api
+          type: web
+          envVarKey: CLASSIFIER_PROMPT_VERSION
+        key: CLASSIFIER_PROMPT_VERSION
+      - fromService:
+          name: marketplace-dashboard-api
+          type: web
+          envVarKey: INGEST_TZ
+        key: INGEST_TZ
