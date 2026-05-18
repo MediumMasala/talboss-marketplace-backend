@@ -15,7 +15,8 @@ function istDateMinusDays(days: number): string {
   return `${y}-${m}-${d}`;
 }
 
-interface DayStats {
+interface DayRow {
+  joined_at: string;
   total: number;
   marketplace: number;
   tier1_supreme: number;
@@ -23,9 +24,13 @@ interface DayStats {
   round1: number;
 }
 
-function emptyStats(): DayStats {
-  return { total: 0, marketplace: 0, tier1_supreme: 0, tal_users: 0, round1: 0 };
-}
+const ZERO: Omit<DayRow, "joined_at"> = {
+  total: 0,
+  marketplace: 0,
+  tier1_supreme: 0,
+  tal_users: 0,
+  round1: 0,
+};
 
 route.get("/", async (c) => {
   const dateRaw = c.req.query("date");
@@ -34,28 +39,16 @@ route.get("/", async (c) => {
   prev.setDate(prev.getDate() - 1);
   const yesterday = prev.toISOString().slice(0, 10);
 
-  const { data, error } = await supabase
-    .from("candidates_daily")
-    .select("joined_at, source_table, is_marketplace, tier")
-    .in("joined_at", [today, yesterday]);
+  const { data, error } = await supabase.rpc("daily_breakdown", {
+    start_date: yesterday,
+    end_date: today,
+  });
 
   if (error) return c.json({ error: error.message }, 500);
 
-  const buckets: Record<string, DayStats> = { [today]: emptyStats(), [yesterday]: emptyStats() };
-  for (const r of data ?? []) {
-    const s = buckets[r.joined_at as string];
-    if (!s) continue;
-    s.total += 1;
-    if (r.is_marketplace) {
-      s.marketplace += 1;
-      if (r.tier === "tier1" || r.tier === "supreme") s.tier1_supreme += 1;
-    }
-    if (r.source_table === "tal_users" || r.source_table === "both") s.tal_users += 1;
-    if (r.source_table === "round1_god_table" || r.source_table === "both") s.round1 += 1;
-  }
-
-  const t = buckets[today];
-  const y = buckets[yesterday];
+  const rows = (data ?? []) as DayRow[];
+  const t = rows.find((r) => r.joined_at === today) ?? { joined_at: today, ...ZERO };
+  const y = rows.find((r) => r.joined_at === yesterday) ?? { joined_at: yesterday, ...ZERO };
 
   const resp: SummaryResponse = {
     date: today,
