@@ -1,0 +1,116 @@
+RENDER DEPLOY — STEP BY STEP
+=============================
+
+GitHub repo: https://github.com/MediumMasala/talboss-marketplace-backend
+
+The repo has a render.yaml that describes two services:
+  - marketplace-dashboard-api    (web service, serves the three /api endpoints)
+  - marketplace-dashboard-ingest (cron job, daily at 9:30 AM IST)
+
+
+STEP 1 — Sign in to Render
+--------------------------
+https://dashboard.render.com
+
+If your Render account doesn't have GitHub connected yet, click your avatar
+(top right) → "Account Settings" → "GitHub" → "Connect GitHub" and authorize.
+
+Make sure the GitHub app has access to the MediumMasala org (otherwise the
+repo will not show up in the next step).
+
+
+STEP 2 — New Blueprint
+----------------------
+1. Click the purple "New +" button (top right) → choose "Blueprint".
+2. In the repo picker, select:  MediumMasala/talboss-marketplace-backend
+   - If you don't see it, click "Configure GitHub App" and grant access to
+     the MediumMasala org.
+3. Render reads render.yaml and shows the two services.
+4. Service group name: leave as "marketplace-dashboard" (auto).
+5. Click "Apply".
+
+
+STEP 3 — First build will fail (expected)
+-----------------------------------------
+Both services will deploy, but the web service will crash on startup because
+the required secrets are not set yet. That's normal. Don't worry.
+
+
+STEP 4 — Set environment variables
+----------------------------------
+1. Click "marketplace-dashboard-api" in the services list.
+2. Left sidebar → "Environment".
+3. You will see a list of env vars. Five of them are blank (they have
+   "sync: false" in render.yaml so Render won't auto-fill them).
+
+Set these five — values come from your local .env.local file in this folder:
+
+   API_KEY                       (the 64-char hex string)
+   SUPABASE_URL                  (https://avhgrajzoulaxgxyyuvm.supabase.co)
+   SUPABASE_SERVICE_ROLE_KEY     (starts with sb_secret_)
+   METABASE_API_KEY              (starts with mb_)
+   GEMINI_API_KEY                (starts with AIza)
+
+4. Click "Save changes" at the bottom. Render auto-redeploys the web service.
+
+
+STEP 5 — Wait for green deploy
+------------------------------
+1. Click the "Events" or "Logs" tab to watch the redeploy.
+2. ~2–3 min later you should see "Your service is live".
+3. Hit the URL Render shows at the top — try:
+      https://<your-service>.onrender.com/healthz
+   should return:  {"ok":true}
+
+
+STEP 6 — Note the live URL
+--------------------------
+The URL will be either:
+      https://marketplace-dashboard-api.onrender.com
+or (if the slug was taken)
+      https://marketplace-dashboard-api-XXXX.onrender.com
+
+Copy this URL — you'll paste it as VITE_API_BASE_URL in your Lovable project.
+
+
+STEP 7 — Cron job (no action needed)
+------------------------------------
+The cron service `marketplace-dashboard-ingest` was deployed alongside.
+It will fire automatically at 0 4 * * * UTC (9:30 AM IST).
+
+If you want to trigger it manually right now to confirm it works:
+  1. Click "marketplace-dashboard-ingest" service.
+  2. Top-right → "Run job" → "Trigger Run".
+  3. Watch Logs — should see [ingest] lines for yesterday's date.
+
+
+STEP 8 — Wire Lovable
+---------------------
+In the Lovable project for talboss-insights-1577ac3f → settings → Environment Variables:
+
+   VITE_API_BASE_URL = <the Render URL from Step 6>
+   VITE_API_KEY      = same value as API_KEY in Render
+
+Redeploy Lovable. The dashboard should immediately start showing real data.
+
+
+TROUBLESHOOTING
+---------------
+- "Repository not found": GitHub app doesn't have access to MediumMasala org.
+  Fix: GitHub → Settings → Applications → Render → grant org access.
+
+- Web service crashloops with "Missing SUPABASE_URL" or similar:
+  Env var not set. Re-check Step 4.
+
+- 401 from the API on first hit:
+  API_KEY in Render doesn't match what the client is sending. Make sure
+  the value pasted in Render is identical to the one in Lovable's
+  VITE_API_KEY.
+
+- "Your service is live" but returns 502:
+  Hono didn't bind to PORT. Make sure PORT env var is 8080 (already in
+  render.yaml).
+
+- Cron didn't run:
+  Cron jobs on Render fire on UTC schedule. Our `0 4 * * *` = 4:00 UTC =
+  9:30 AM IST. To test sooner, click "Run job" → "Trigger Run".
