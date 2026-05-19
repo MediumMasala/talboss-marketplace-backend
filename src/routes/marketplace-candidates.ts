@@ -34,11 +34,14 @@ route.get("/", async (c) => {
   const dateRaw = c.req.query("date");
   const dateISO = dateRaw && /^\d{4}-\d{2}-\d{2}$/.test(dateRaw) ? dateRaw : todayIST();
 
+  // Marketplace tab now includes "maybes":
+  // is_marketplace=true OR confidence in ('low','medium').
+  // High-confidence rejections stay hidden.
   const { data, error } = await supabase
     .from("candidates_daily")
-    .select("name, company, role, confidence, reason, joined_at, raw")
+    .select("name, company, role, confidence, reason, joined_at, raw, is_marketplace")
     .eq("joined_at", dateISO)
-    .eq("is_marketplace", true)
+    .or("is_marketplace.eq.true,confidence.in.(low,medium)")
     .order("name", { ascending: true })
     .limit(5000);
 

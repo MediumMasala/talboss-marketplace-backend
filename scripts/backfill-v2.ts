@@ -11,9 +11,8 @@ import { supabase } from "../src/supabase.js";
 import { classify } from "../src/classifier.js";
 import { env } from "../src/env.js";
 
-// Both prompt versions count as "done". v2 dispatcher picks the right
-// one per row at classify time.
-const TARGET_VERSIONS = ["v2-blr-eng-pm-pedigree", "v2-r1-resume-pedigree"];
+// Current prompt versions — rows on any other version get re-classified.
+const TARGET_VERSIONS = ["v3-blr-banks-electronics-out", "v3-r1-banks-electronics-out"];
 const BATCH = 200;
 const CONCURRENCY = 8;
 
