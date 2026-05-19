@@ -314,6 +314,12 @@ function buildUserMessage(input: ClassifierInput): string {
     lines.push(`ai_interview_track: ${(raw.ai_interview_title as string | null) ?? "null"}`);
     lines.push(`hiring_bias: ${(raw.hiring_bias as string | null) ?? "null"}`);
     lines.push(`resume_quality: ${(raw.resume_quality as string | null) ?? "null"}`);
+    const resumeText = raw.resume_text;
+    if (typeof resumeText === "string" && resumeText.length > 0) {
+      lines.push("");
+      lines.push("# Resume content (first 3000 chars — use this to determine current role, current company, education, pedigree)");
+      lines.push(resumeText.slice(0, 3000));
+    }
   }
 
   return lines.join("\n");

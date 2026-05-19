@@ -88,18 +88,26 @@ async function processBatch(rows: Row[]): Promise<{ ok: number; fail: number }> 
 }
 
 async function main() {
-  console.log(`Backfill to ${TARGET_VERSION} (model=${env.CLASSIFIER_MODEL})`);
+  const startDate = process.argv[2]; // YYYY-MM-DD optional
+  const endDate = process.argv[3];   // YYYY-MM-DD optional (inclusive)
+  console.log(
+    `Backfill to ${TARGET_VERSION} (model=${env.CLASSIFIER_MODEL})` +
+      (startDate ? ` dates ${startDate}..${endDate ?? startDate}` : ""),
+  );
   const startedRun = Date.now();
   let totalOk = 0;
   let totalFail = 0;
 
   while (true) {
-    const { data, error } = await supabase
+    let q = supabase
       .from("candidates_daily")
       .select("id, joined_at, dedupe_key, name, company, role, location, raw")
-      .neq("classifier_version", TARGET_VERSION)
-      .order("id", { ascending: true })
-      .limit(BATCH);
+      .neq("classifier_version", TARGET_VERSION);
+    if (startDate) q = q.gte("joined_at", startDate);
+    if (endDate || startDate) q = q.lte("joined_at", endDate ?? startDate);
+    q = q.order("id", { ascending: true }).limit(BATCH);
+
+    const { data, error } = await q;
 
     if (error) throw new Error(`fetch: ${error.message}`);
     const rows = (data ?? []) as Row[];

@@ -44,10 +44,31 @@ async function worker() {
       phone: String(raw.phone ?? raw.phone_number ?? ""),
       current_company: String(r.company ?? ""),
       current_role: String(r.role ?? ""),
-      location: String(r.location ?? ""),
+      location_normalized: String(r.location ?? ""),
+      // All raw location fields side-by-side so you can see what each contains:
+      user_location: String(raw.user_location ?? ""),
+      li_location_city: String(raw.li_location_city ?? ""),
+      li_location_country: String(raw.li_location_country ?? ""),
+      exp_location: String(raw.exp_location ?? ""),
+      ld_location: String(raw.ld_location ?? ""),
+      preferred_job_location: String(
+        raw.preferred_job_location
+          ? typeof raw.preferred_job_location === "string"
+            ? raw.preferred_job_location
+            : JSON.stringify(raw.preferred_job_location)
+          : "",
+      ),
+      willing_to_relocate_options: String(
+        raw.willing_to_relocate_options
+          ? typeof raw.willing_to_relocate_options === "string"
+            ? raw.willing_to_relocate_options
+            : JSON.stringify(raw.willing_to_relocate_options)
+          : "",
+      ),
       linkedin_url: String(raw.linkedin_url ?? raw.li_public_url ?? ""),
       resume_url: String(raw.resume_url ?? ""),
       li_headline: String(raw.li_headline ?? ""),
+      li_about: String(raw.li_about ?? "").slice(0, 200),
       institute_name: String(raw.institute_name ?? ""),
       institute_degree: String(raw.institute_degree ?? ""),
       institute_end_year: String(raw.institute_end_year ?? ""),
