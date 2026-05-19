@@ -7,11 +7,43 @@ function pickDedupeKey(c: Pick<NormalizedCandidate, "grapevine_id" | "phone" | "
   return `na:${crypto.randomUUID()}`;
 }
 
+/**
+ * "If any of these location fields has Bangalore in it, then the user is
+ * from Bangalore." Single source of truth — used by both Round 1 and
+ * tal.users normalize.
+ */
+const BLR = /\b(bangalore|bengaluru|blr|bangaluru)\b/i;
+export function hasBangaloreSignal(...fields: unknown[]): boolean {
+  for (const f of fields) {
+    if (!f) continue;
+    if (typeof f === "string") {
+      if (BLR.test(f)) return true;
+    } else if (Array.isArray(f)) {
+      for (const v of f) {
+        if (typeof v === "string" && BLR.test(v)) return true;
+      }
+    } else if (typeof f === "object") {
+      try {
+        if (BLR.test(JSON.stringify(f))) return true;
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  return false;
+}
+
 export function normalizeRound1(row: Record<string, unknown>, dateISO: string): NormalizedCandidate {
   const grapevine_id = (row["user_id"] as string | null) ?? null;
   const phone = (row["phone_number"] as string | null) ?? null;
   const email = (row["email"] as string | null) ?? null;
   const partial = { grapevine_id, phone, email };
+  const isBangalore = hasBangaloreSignal(
+    row["preferred_job_location"],
+    row["willing_to_relocate_options"],
+    typeof row["resume_text"] === "string" ? (row["resume_text"] as string).slice(0, 4000) : null,
+    row["annotations"],
+  );
   return {
     source_table: "round1_god_table",
     dedupe_key: pickDedupeKey(partial),
@@ -21,7 +53,7 @@ export function normalizeRound1(row: Record<string, unknown>, dateISO: string): 
     name: (row["user_real_name"] as string | null) ?? null,
     company: (row["company_name"] as string | null) ?? null,
     role: (row["job_title"] as string | null) ?? null,
-    location: (row["preferred_job_location"] as string | null) ?? null,
+    location: isBangalore ? "Bangalore" : ((row["preferred_job_location"] as string | null) ?? null),
     joined_at: dateISO,
     raw: row,
   };
@@ -43,11 +75,9 @@ export function normalizeTalUser(row: Record<string, unknown>, dateISO: string):
     (row["ld_position"] as string | null) ??
     (row["meta_role"] as string | null) ??
     null;
-  // Location fallback chain — most specific first:
-  //   1. ld_location  (LinkedIn-scraper full location string)
-  //   2. li_location_city + country (parsed profile location)
-  //   3. exp_location (current experience location)
-  //   4. user_location (top-level tal.users.location)
+  // Single rule: if ANY location-ish field mentions Bangalore, treat the
+  // candidate as Bangalore. Otherwise fall back to the most specific
+  // available string for the classifier to look at.
   const liLocCity = row["li_location_city"] as string | null;
   const liLocCountry = row["li_location_country"] as string | null;
   const liCombined = liLocCity
@@ -55,12 +85,21 @@ export function normalizeTalUser(row: Record<string, unknown>, dateISO: string):
       ? `${liLocCity}, ${liLocCountry}`
       : liLocCity
     : null;
-  const location =
-    (row["ld_location"] as string | null) ??
-    liCombined ??
-    (row["exp_location"] as string | null) ??
-    (row["user_location"] as string | null) ??
-    null;
+  const isBangalore = hasBangaloreSignal(
+    row["ld_location"],
+    liLocCity,
+    liLocCountry,
+    row["exp_location"],
+    row["user_location"],
+    row["li_about"],
+  );
+  const location = isBangalore
+    ? "Bangalore"
+    : ((row["ld_location"] as string | null) ??
+       liCombined ??
+       (row["exp_location"] as string | null) ??
+       (row["user_location"] as string | null) ??
+       null);
   return {
     source_table: "tal_users",
     dedupe_key: pickDedupeKey(partial),
