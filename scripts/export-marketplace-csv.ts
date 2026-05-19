@@ -7,12 +7,13 @@ import { supabase } from "../src/supabase.js";
 
 const date = process.argv[2] ?? new Date().toLocaleString("sv-SE", { timeZone: "Asia/Kolkata" }).slice(0, 10);
 
-// Marketplace = is_marketplace=true OR maybes (confidence in low/medium).
+// Marketplace = (is_marketplace=true AND confidence=high) OR confidence=medium
+// (matches the dashboard filter — drops low-confidence noise).
 const { data, error } = await supabase
   .from("candidates_daily")
   .select("name, company, role, location, tier, confidence, reason, source_table, is_marketplace, raw")
   .eq("joined_at", date)
-  .or("is_marketplace.eq.true,confidence.in.(low,medium)")
+  .or("and(is_marketplace.eq.true,confidence.eq.high),confidence.eq.medium")
   .order("is_marketplace", { ascending: false })
   .order("tier", { ascending: true })
   .order("name", { ascending: true });
