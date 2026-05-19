@@ -11,7 +11,9 @@ import { supabase } from "../src/supabase.js";
 import { classify } from "../src/classifier.js";
 import { env } from "../src/env.js";
 
-const TARGET_VERSION = "v2-blr-eng-pm-pedigree";
+// Both prompt versions count as "done". v2 dispatcher picks the right
+// one per row at classify time.
+const TARGET_VERSIONS = ["v2-blr-eng-pm-pedigree", "v2-r1-resume-pedigree"];
 const BATCH = 200;
 const CONCURRENCY = 8;
 
@@ -91,7 +93,7 @@ async function main() {
   const startDate = process.argv[2]; // YYYY-MM-DD optional
   const endDate = process.argv[3];   // YYYY-MM-DD optional (inclusive)
   console.log(
-    `Backfill to ${TARGET_VERSION} (model=${env.CLASSIFIER_MODEL})` +
+    `Backfill to one of [${TARGET_VERSIONS.join(", ")}] (model=${env.CLASSIFIER_MODEL})` +
       (startDate ? ` dates ${startDate}..${endDate ?? startDate}` : ""),
   );
   const startedRun = Date.now();
@@ -102,7 +104,7 @@ async function main() {
     let q = supabase
       .from("candidates_daily")
       .select("id, joined_at, dedupe_key, name, company, role, location, raw")
-      .neq("classifier_version", TARGET_VERSION);
+      .not("classifier_version", "in", `(${TARGET_VERSIONS.map((v) => `"${v}"`).join(",")})`);
     if (startDate) q = q.gte("joined_at", startDate);
     if (endDate || startDate) q = q.lte("joined_at", endDate ?? startDate);
     q = q.order("id", { ascending: true }).limit(BATCH);
