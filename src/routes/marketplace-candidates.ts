@@ -36,7 +36,7 @@ route.get("/", async (c) => {
 
   const { data, error } = await supabase
     .from("candidates_daily")
-    .select("name, company, role, current_role, confidence, reason, joined_at, raw")
+    .select("name, company, role, confidence, reason, joined_at, raw")
     .eq("joined_at", dateISO)
     .eq("is_marketplace", true)
     .order("name", { ascending: true })
@@ -48,7 +48,6 @@ route.get("/", async (c) => {
     name: r.name as string | null,
     company: r.company as string | null,
     role: r.role as string | null,
-    current_role: (r.current_role as string | null) ?? null,
     linkedin_url: pickLinkedIn((r.raw ?? {}) as Record<string, unknown>),
     resume_url: pickResume((r.raw ?? {}) as Record<string, unknown>),
     confidence: (r.confidence as "high" | "medium" | "low" | null) ?? null,

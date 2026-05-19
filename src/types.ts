@@ -63,7 +63,6 @@ export interface MarketplaceCandidateRow {
   name: string | null;
   company: string | null;
   role: string | null;
-  current_role: string | null;
   linkedin_url: string | null;
   resume_url: string | null;
   confidence: Confidence | null;
