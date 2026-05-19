@@ -1,8 +1,8 @@
 import { env } from "./env.js";
 import type { ClassifierInput, ClassifierOutput } from "./types.js";
 
-const PROMPT_VERSION_TAL = "v2-blr-eng-pm-pedigree";
-const PROMPT_VERSION_R1 = "v2-r1-resume-pedigree";
+const PROMPT_VERSION_TAL = "v3-blr-banks-electronics-out";
+const PROMPT_VERSION_R1 = "v3-r1-banks-electronics-out";
 
 /**
  * Marketplace classifier — Gemini 2.5 Pro, v2-blr-eng-pm-pedigree
@@ -113,6 +113,27 @@ EXCLUDES (auto-fail):
   • Consulting: McKinsey, BCG, Bain, Deloitte advisory, EY, KPMG,
     PwC, ZS Associates, Kearney, Oliver Wyman.
   • Recruitment / staffing.
+  • BANKS — ALL excluded (commercial + investment):
+      HDFC Bank, ICICI Bank, IDFC First Bank, IDFC Bank, SBI, State
+      Bank of India, Axis Bank, Kotak Mahindra Bank, Yes Bank,
+      IndusInd Bank, Federal Bank, Bank of Baroda, PNB, Canara
+      Bank, Union Bank, Bank of India, RBL Bank, IDBI, AU Small
+      Finance Bank, Citibank, HSBC, Standard Chartered, Deutsche
+      Bank, Barclays, Credit Suisse, UBS, Wells Fargo, Bank of
+      America, BNP Paribas, Société Générale, Goldman Sachs,
+      JP Morgan, Morgan Stanley. Engineering arms at these banks
+      are also excluded.
+      Fintech startups (Razorpay, Cred, Slice, Acko, Groww,
+      Zerodha, PhonePe, Jupiter, Niyo, Fi, Setu, M2P, Decentro)
+      remain QUALIFYING — they are not banks.
+  • FOREIGN consumer electronics manufacturers — excluded:
+      Samsung, LG, Sony, Panasonic, Sharp, Toshiba, Hitachi,
+      Foxconn, Mitsubishi Electric, Philips, Bose, Haier, TCL,
+      BOE, Vivo, Oppo, Xiaomi, OnePlus.
+      Indian-native electronics (Tata Elxsi, Bosch India engineering
+      side, L&T Technology Services, Sasken, Cyient product side)
+      may qualify case-by-case; default FAIL with confidence=medium
+      if unclear.
   • Non-engineering GCC back offices (most bank GBS centres, Big-4 GBS).
 
 ═══════════════════════════════════════════════════════════════
@@ -303,6 +324,33 @@ EXCLUDES (auto-fail):
 
    Staffing / recruitment: Randstad, ManpowerGroup, Adecco, TeamLease,
    Quess, Naukri, foundit.
+
+   BANKS (commercial + investment) — ALL excluded. Includes:
+     HDFC Bank, ICICI Bank, IDFC First Bank, IDFC Bank, SBI / State
+     Bank of India, Axis Bank, Kotak Mahindra Bank, Yes Bank,
+     IndusInd Bank, Federal Bank, Bank of Baroda, Punjab National
+     Bank, Canara Bank, Union Bank, Bank of India, Central Bank of
+     India, RBL Bank, IDBI Bank, AU Small Finance Bank.
+     Foreign banks: Citibank, HSBC, Standard Chartered, Deutsche
+     Bank, Barclays, Credit Suisse, UBS, Wells Fargo, Bank of
+     America, BNP Paribas, Société Générale, Goldman Sachs,
+     JP Morgan / JPMorgan Chase, Morgan Stanley.
+     Engineering teams at these banks are also excluded per
+     current policy.
+   IMPORTANT: Fintech startups (Razorpay, Cred, Slice, Acko, Groww,
+     Zerodha, PhonePe, Jupiter, Niyo, Open, Junio, Fi, Setu,
+     M2P, Decentro) are NOT banks and continue to QUALIFY.
+
+   FOREIGN consumer electronics manufacturers — excluded unless
+   candidate is clearly in an Indian-native engineering org:
+     Samsung, LG, Sony, Panasonic, Sharp, Toshiba, Hitachi,
+     Foxconn, Mitsubishi Electric, Philips, Bose, Haier, TCL,
+     BOE, Vivo, Oppo, Xiaomi, OnePlus (Chinese parent companies).
+   Indian-native electronics (Tata Elxsi, Bosch India engineering,
+   L&T Technology Services, Sasken, Cyient when on product side,
+   HCL Tech engineering — though HCL is also IT services, judge by
+   role) MAY qualify on a case-by-case basis; default to FAIL with
+   confidence="medium" if unclear.
 
    Non-engineering GCCs whose Bangalore office is primarily support,
    ops, finance, or shared services. When unsure about a GCC,
