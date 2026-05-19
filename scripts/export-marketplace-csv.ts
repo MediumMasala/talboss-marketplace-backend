@@ -7,11 +7,13 @@ import { supabase } from "../src/supabase.js";
 
 const date = process.argv[2] ?? new Date().toLocaleString("sv-SE", { timeZone: "Asia/Kolkata" }).slice(0, 10);
 
+// Marketplace = is_marketplace=true OR maybes (confidence in low/medium).
 const { data, error } = await supabase
   .from("candidates_daily")
-  .select("name, company, role, location, tier, confidence, reason, source_table, raw")
+  .select("name, company, role, location, tier, confidence, reason, source_table, is_marketplace, raw")
   .eq("joined_at", date)
-  .eq("is_marketplace", true)
+  .or("is_marketplace.eq.true,confidence.in.(low,medium)")
+  .order("is_marketplace", { ascending: false })
   .order("tier", { ascending: true })
   .order("name", { ascending: true });
 
@@ -24,8 +26,9 @@ const out = rows.map((r) => {
   const linkedin = (raw.linkedin_url as string | null) ?? (raw.li_public_url as string | null) ?? "";
   const resume = (raw.resume_url as string | null) ?? "";
   return {
-    tier: String(r.tier),
+    verdict: r.is_marketplace ? "yes" : "maybe",
     confidence: String(r.confidence ?? ""),
+    tier: String(r.tier),
     name: String(r.name ?? ""),
     company: String(r.company ?? ""),
     role: String(r.role ?? ""),
@@ -48,6 +51,9 @@ writeFileSync(path, csv);
 console.log(`Wrote ${path}`);
 
 // brief breakdown
-const counts = { supreme: 0, tier1: 0, tier2: 0 };
+const yes = out.filter((r) => r.verdict === "yes").length;
+const maybe = out.filter((r) => r.verdict === "maybe").length;
+console.log(`Verdict: yes=${yes} maybe=${maybe}`);
+const counts = { supreme: 0, tier1: 0, tier2: 0, other: 0 };
 for (const r of out) counts[r.tier as keyof typeof counts] = (counts[r.tier as keyof typeof counts] ?? 0) + 1;
-console.log(`Tier: supreme=${counts.supreme} tier1=${counts.tier1} tier2=${counts.tier2}`);
+console.log(`Tier: supreme=${counts.supreme} tier1=${counts.tier1} tier2=${counts.tier2} other=${counts.other}`);

@@ -34,16 +34,17 @@ route.get("/", async (c) => {
   const dateRaw = c.req.query("date");
   const dateISO = dateRaw && /^\d{4}-\d{2}-\d{2}$/.test(dateRaw) ? dateRaw : todayIST();
 
-  // Marketplace tab now includes "maybes":
-  // is_marketplace=true OR confidence in ('low','medium').
-  // High-confidence rejections stay hidden.
+  // Marketplace tab: confident yeses + medium "maybes".
+  //   (is_marketplace=true AND confidence='high')  — confident yes
+  //   OR confidence='medium'                       — medium uncertain
+  // Excludes low-confidence noise and confident rejects.
   const { data, error } = await supabase
     .from("candidates_daily")
     .select("name, company, role, confidence, reason, joined_at, raw, is_marketplace")
     .eq("joined_at", dateISO)
-    .or("is_marketplace.eq.true,confidence.in.(low,medium)")
+    .or("and(is_marketplace.eq.true,confidence.eq.high),confidence.eq.medium")
     .order("name", { ascending: true })
-    .limit(5000);
+    .limit(10000);
 
   if (error) return c.json({ error: error.message }, 500);
 
