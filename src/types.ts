@@ -45,6 +45,8 @@ export interface SummaryResponse {
   date: string;
   total: { value: number; delta: number };
   marketplace: { value: number; delta: number };
+  marketplace_tal: { value: number; delta: number };
+  marketplace_round1: { value: number; delta: number };
   tier1_supreme: { value: number; delta: number };
   tal_users: { value: number; delta: number };
   round1: { value: number; delta: number };
@@ -54,6 +56,8 @@ export interface AggregateRow {
   joined_at: string;
   total_count: number;
   marketplace_count: number;
+  marketplace_tal_count: number;
+  marketplace_round1_count: number;
   tier1_supreme_count: number;
   tal_users_count: number;
   round1_count: number;

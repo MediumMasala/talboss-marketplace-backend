@@ -19,6 +19,8 @@ interface DayRow {
   joined_at: string;
   total: number;
   marketplace: number;
+  marketplace_tal: number;
+  marketplace_round1: number;
   tier1_supreme: number;
   tal_users: number;
   round1: number;
@@ -27,6 +29,8 @@ interface DayRow {
 const ZERO: Omit<DayRow, "joined_at"> = {
   total: 0,
   marketplace: 0,
+  marketplace_tal: 0,
+  marketplace_round1: 0,
   tier1_supreme: 0,
   tal_users: 0,
   round1: 0,
@@ -52,11 +56,13 @@ route.get("/", async (c) => {
 
   const resp: SummaryResponse = {
     date: today,
-    total:         { value: t.total,         delta: t.total - y.total },
-    marketplace:   { value: t.marketplace,   delta: t.marketplace - y.marketplace },
-    tier1_supreme: { value: t.tier1_supreme, delta: t.tier1_supreme - y.tier1_supreme },
-    tal_users:     { value: t.tal_users,     delta: t.tal_users - y.tal_users },
-    round1:        { value: t.round1,        delta: t.round1 - y.round1 },
+    total:              { value: t.total,              delta: t.total - y.total },
+    marketplace:        { value: t.marketplace,        delta: t.marketplace - y.marketplace },
+    marketplace_tal:    { value: t.marketplace_tal,    delta: t.marketplace_tal - y.marketplace_tal },
+    marketplace_round1: { value: t.marketplace_round1, delta: t.marketplace_round1 - y.marketplace_round1 },
+    tier1_supreme:      { value: t.tier1_supreme,      delta: t.tier1_supreme - y.tier1_supreme },
+    tal_users:          { value: t.tal_users,          delta: t.tal_users - y.tal_users },
+    round1:             { value: t.round1,             delta: t.round1 - y.round1 },
   };
   return c.json(resp);
 });

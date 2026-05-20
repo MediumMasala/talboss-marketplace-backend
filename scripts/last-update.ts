@@ -1,6 +1,9 @@
 import { supabase } from "../src/supabase.js";
 
-const today = "2026-05-18";
+// Defaults to current IST date; pass YYYY-MM-DD as argv[2] to override.
+const today =
+  process.argv[2] ??
+  new Date().toLocaleString("sv-SE", { timeZone: "Asia/Kolkata" }).slice(0, 10);
 
 const { data: latest } = await supabase
   .from("candidates_daily")

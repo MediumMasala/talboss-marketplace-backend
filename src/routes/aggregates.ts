@@ -8,6 +8,8 @@ interface RpcRow {
   joined_at: string;
   total: number;
   marketplace: number;
+  marketplace_tal: number;
+  marketplace_round1: number;
   tier1_supreme: number;
   tal_users: number;
   round1: number;
@@ -33,6 +35,8 @@ route.get("/", async (c) => {
     joined_at: r.joined_at,
     total_count: r.total,
     marketplace_count: r.marketplace,
+    marketplace_tal_count: r.marketplace_tal,
+    marketplace_round1_count: r.marketplace_round1,
     tier1_supreme_count: r.tier1_supreme,
     tal_users_count: r.tal_users,
     round1_count: r.round1,
